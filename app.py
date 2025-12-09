@@ -66,7 +66,7 @@ st.markdown("""
 
 # --- 3. SYSTEM CONFIG ---
 DEVICE = "cpu" # Deployment safe
-MODEL_PATH = "saved_models/my_checkpoint.pth.tar"
+MODEL_PATH = "saved_models/lung_model_deploy.pth"
 IMAGE_HEIGHT = 160
 IMAGE_WIDTH = 160
 # Approximate spacing for standard digital Chest X-ray (0.143mm/pixel)
@@ -77,13 +77,16 @@ PIXEL_SPACING = 0.143
 
 @st.cache_resource
 def load_system():
-    """Loads the U-Net Model with caching to prevent reloading on every click."""
     model = UNET(in_channels=3, out_channels=1)
     if not os.path.exists(MODEL_PATH):
         return None
     
-    checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
-    model.load_state_dict(checkpoint["state_dict"])
+    state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
+    model.load_state_dict(state_dict)
+    
+    # ADD THIS LINE: Convert back to Float32
+    model.float() 
+    
     model.to(DEVICE)
     model.eval()
     return model

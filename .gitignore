@@ -1,4 +1,5 @@
-# --- Ignore Data (CRITICAL) ---
+--- Ignore Data (CRITICAL) ---
+
 data/
 archive/
 *.zip
@@ -6,18 +7,25 @@ archive/
 *.jpg
 *.jpeg
 
-# --- Ignore Large Models (THE FIX) ---
-saved_models/
-*.pth.tar
-*.pth
+--- Ignore Large Models ---
 
-# --- Ignore Virtual Environment ---
+Ignore all contents of saved_models by default to prevent accidental large uploads
+
+saved_models/*
+
+! means ALLOW this specific file (The optimized 60MB model)
+
+!saved_models/lung_model_deploy.pth
+
+--- Ignore Virtual Environment ---
+
 env/
 venv/
 .env
 
-# --- Ignore System Junk ---
-__pycache__/
+--- Ignore System Junk ---
+
+pycache/
 *.pyc
 .DS_Store
 Thumbs.db

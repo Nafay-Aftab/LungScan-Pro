@@ -1,0 +1,24 @@
+# --- Ignore Data (CRITICAL) ---
+data/
+archive/
+*.zip
+*.png
+*.jpg
+*.jpeg
+
+# --- Ignore Large Models (THE FIX) ---
+saved_models/
+*.pth.tar
+*.pth
+
+# --- Ignore Virtual Environment ---
+env/
+venv/
+.env
+
+# --- Ignore System Junk ---
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.vscode/

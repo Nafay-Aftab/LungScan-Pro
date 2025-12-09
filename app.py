@@ -69,9 +69,6 @@ DEVICE = "cpu" # Deployment safe
 MODEL_PATH = "saved_models/lung_model_deploy.pth"
 IMAGE_HEIGHT = 160
 IMAGE_WIDTH = 160
-# Approximate spacing for standard digital Chest X-ray (0.143mm/pixel)
-# This varies by machine, but we use a standard constant for demonstration.
-PIXEL_SPACING = 0.143 
 
 # --- 4. ENGINE FUNCTIONS ---
 
@@ -84,7 +81,7 @@ def load_system():
     state_dict = torch.load(MODEL_PATH, map_location=DEVICE)
     model.load_state_dict(state_dict)
     
-    # ADD THIS LINE: Convert back to Float32
+    # CRITICAL: Convert back to Float32 for CPU stability
     model.float() 
     
     model.to(DEVICE)
@@ -114,24 +111,22 @@ def postprocess(prediction, original_size):
     
     return full_mask, full_prob
 
-def calculate_biomarkers(mask):
+def calculate_biomarkers(mask, spacing_mm):
     """Calculates clinical metrics from the segmentation."""
     pixel_count = np.sum(mask == 1)
     
     # Area = Pixels * (mm/pixel)^2
-    area_mm = pixel_count * (PIXEL_SPACING ** 2)
+    area_mm = pixel_count * (spacing_mm ** 2)
     area_cm = area_mm / 100
     
     # Pseudo-clinical logic for demo purposes
     status = "Normal Volume"
     flag = "NORMAL"
-    color = "green"
     
     # Arbitrary thresholds for demo logic
     if area_cm < 180: 
         status = "Reduced Volume (Possible Restriction)"
         flag = "ABNORMAL"
-        color = "red"
         
     return area_cm, pixel_count, status, flag
 
@@ -153,7 +148,7 @@ def generate_report(filename, area, pixels, status, spacing):
     
     CALIBRATION SETTINGS
     --------------------
-    Pixel Spacing: {spacing} mm/px (User Calibrated)
+    Pixel Spacing: {spacing:.3f} mm/px (User Calibrated)
     
     SEGMENTATION RESULTS
     --------------------
@@ -175,6 +170,7 @@ def generate_report(filename, area, pixels, status, spacing):
     """
     b64 = base64.b64encode(report.encode()).decode()
     return f'<a href="data:file/txt;base64,{b64}" download="Report_{filename}.txt" style="text-decoration:none;"><button style="width:100%; padding:10px; background:#28a745; color:white; border:none; border-radius:5px; cursor:pointer;">📥 Download Full Report</button></a>'
+
 # --- 5. MAIN UI LAYOUT ---
 
 # Sidebar
@@ -190,6 +186,13 @@ with st.sidebar:
     else:
         st.error("🔴 Engine Offline")
         st.warning("Please train the model first.")
+    
+    st.markdown("---")
+    
+    # --- CALIBRATION TOOL (Must be defined before main logic) ---
+    st.markdown("### 📏 Calibration Tool")
+    st.info("Calibrate pixel spacing for accurate measurements.")
+    pixel_spacing = st.slider("Pixel Spacing (mm/px)", 0.100, 0.200, 0.143, 0.001)
     
     st.markdown("---")
     st.markdown("### 🛠️ Display Settings")
@@ -227,7 +230,8 @@ with tab1:
                         mask, prob_map = postprocess(preds, image.size)
                         
                         # 3. Biomarkers
-                        area, pixels, status, flag = calculate_biomarkers(mask)
+                        # Use the pixel_spacing defined in sidebar
+                        area, pixels, status, flag = calculate_biomarkers(mask, pixel_spacing)
                         
                         # Store in session state to persist after reload
                         st.session_state['results'] = {
@@ -246,11 +250,15 @@ with tab1:
         if 'results' in st.session_state:
             res = st.session_state['results']
             
+            # --- DYNAMIC RE-CALCULATION ---
+            # Re-run calc in case user moved the slider after segmentation
+            area, pixels, status, flag = calculate_biomarkers(res['mask'], pixel_spacing)
+            
             # --- METRICS ROW ---
             m1, m2, m3 = st.columns(3)
-            m1.metric("Est. Lung Area", f"{res['area']:.1f} cm²", delta="Volumetric")
+            m1.metric("Est. Lung Area", f"{area:.1f} cm²", delta="Volumetric")
             m2.metric("Segmentation Confidence", "98.4%", "High")
-            m3.metric("Status Assessment", res['flag'], delta_color="off" if res['flag']=="NORMAL" else "inverse")
+            m3.metric("Status Assessment", flag, delta_color="off" if flag=="NORMAL" else "inverse")
             
             st.markdown("---")
             
@@ -259,11 +267,9 @@ with tab1:
             
             with v1:
                 st.markdown("**Segmentation Mask**")
-                # Visual Logic
                 final_display = np.array(res['image'])
                 
                 if show_overlay:
-                    # Green Overlay
                     green_mask = np.zeros_like(final_display)
                     green_mask[:, :, 1] = 255
                     final_display[res['mask'] == 1] = cv2.addWeighted(
@@ -282,8 +288,13 @@ with tab1:
                     st.image(res['mask'] * 255, caption="Binary Mask Output", use_container_width=True)
 
             # --- REPORT ROW ---
-            st.success(f"📋 **Clinical Note:** {res['status']}")
-            st.markdown(generate_report(uploaded_file.name, res['area'], res['pixels'], res['status'], pixel_spacing), unsafe_allow_html=True)
+            if flag == "ABNORMAL":
+                st.error(f"📋 **Clinical Note:** {status}")
+            else:
+                st.success(f"📋 **Clinical Note:** {status}")
+            
+            # Pass all 5 arguments including pixel_spacing
+            st.markdown(generate_report(uploaded_file.name, area, pixels, status, pixel_spacing), unsafe_allow_html=True)
 
         else:
             st.markdown("""

@@ -280,7 +280,7 @@ with tab1:
 
             # --- REPORT ROW ---
             st.success(f"📋 **Clinical Note:** {res['status']}")
-            st.markdown(generate_report(uploaded_file.name, res['area'], res['pixels'], res['status']), unsafe_allow_html=True)
+            st.markdown(generate_report(uploaded_file.name, res['area'], res['pixels'], res['status'], pixel_spacing), unsafe_allow_html=True)
 
         else:
             st.markdown("""

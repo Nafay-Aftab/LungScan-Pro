@@ -142,7 +142,7 @@ def create_heatmap(image, prob_map):
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
     return cv2.addWeighted(img_np, 0.6, heatmap, 0.4, 0)
 
-def generate_report(filename, area, pixels, status):
+def generate_report(filename, area, pixels, status, spacing):
     """Generates a downloadable text file."""
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
     report = f"""
@@ -150,6 +150,10 @@ def generate_report(filename, area, pixels, status):
     =========================================
     Date: {date}
     Scan ID: {filename}
+    
+    CALIBRATION SETTINGS
+    --------------------
+    Pixel Spacing: {spacing} mm/px (User Calibrated)
     
     SEGMENTATION RESULTS
     --------------------
@@ -171,7 +175,6 @@ def generate_report(filename, area, pixels, status):
     """
     b64 = base64.b64encode(report.encode()).decode()
     return f'<a href="data:file/txt;base64,{b64}" download="Report_{filename}.txt" style="text-decoration:none;"><button style="width:100%; padding:10px; background:#28a745; color:white; border:none; border-radius:5px; cursor:pointer;">📥 Download Full Report</button></a>'
-
 # --- 5. MAIN UI LAYOUT ---
 
 # Sidebar
